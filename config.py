@@ -1,14 +1,9 @@
-import importlib
-if importlib.util.find_spec('comet_ml'):
-    from comet_ml import Experiment
 from utils import get_host, get_user
 
 import argparse
 import torch
 
 parser = argparse.ArgumentParser()
-COMET_ML_APP_KEY = 'YOUR_COMET_API_KEY'
-COMET_PROJECT_NAME = 'YOUR_COMET_PROJECT_NAME'
 
 """
 Most Relevant
@@ -16,11 +11,6 @@ Most Relevant
 
 debug = False
 gpu = -1
-use_comet_ml = True if importlib.util.find_spec('comet_ml') and not debug else False
-parser.add_argument('--use_comet_ml', default=use_comet_ml)
-
-if use_comet_ml:
-    parser.add_argument('--comet_api_key', default=COMET_ML_APP_KEY)
 
 """ 
 dataset:
@@ -32,20 +22,31 @@ dataset:
 # dataset = 'twitter_asian_prejudice_sentiment'
 # dataset = 'r8_presplit'
 # dataset = 'ag_presplit'
-dataset = 'twitter_asian_prejudice_small'
+# dataset = 'twitter_asian_prejudice_small'
+dataset = 'jigsaw'
 
+# Configure dataset-specific parameters
 if 'twitter_asian_prejudice' in dataset:
     if 'sentiment' in dataset:
         num_labels = 2
     else:
         num_labels = 4
+    multi_label = False
 elif 'ag' in dataset:
     num_labels = 4
+    multi_label = False
 elif 'r8' in dataset:
     num_labels = 8
+    multi_label = False
+elif 'jigsaw' in dataset:
+    num_labels = 6  # toxic, severe_toxic, obscene, threat, insult, identity_hate
+    multi_label = True
+else:
+    raise ValueError(f"Unknown dataset: {dataset}")
 
 parser.add_argument('--dataset', default=dataset)
 parser.add_argument('--random_seed', default=3)
+parser.add_argument('--multi_label', default=multi_label)
 
 
 """
@@ -59,7 +60,8 @@ parser.add_argument('--use_edge_weights', default=False)
 parser.add_argument('--init_type', default='one_hot_init')
 if model == 'text_gcn':
     n = '--model'
-    pred_type = 'softmax'
+    # Use sigmoid for multi-label, softmax for single-label
+    pred_type = 'sigmoid' if multi_label else 'softmax'
     node_embd_type = 'gcn'
     layer_dim_list = [200, num_labels]
     num_layers = len(layer_dim_list)
@@ -85,16 +87,25 @@ print("{}: {}\n".format(model, model_params))
 """
 Sampling
 """
-word_window_size = 10
+# Reduced from 10 to 5 for memory efficiency with large datasets
+word_window_size = 5
 parser.add_argument('--word_window_size', default=word_window_size)
+
+# Minimum word frequency to include in vocabulary (filters rare words)
+# Higher value = smaller vocabulary = less memory
+min_word_freq = 5  # Only include words appearing at least 5 times
+parser.add_argument('--min_word_freq', type=int, default=min_word_freq)
+
 validation_window_size = 10
 
 """
 Validation
 """
 parser.add_argument("--validation_window_size", default=validation_window_size)
-parser.add_argument("--validation_metric", default="accuracy",
-                    choices=["f1_weighted", "accuracy", "loss"])
+# Default validation metric depends on task type
+default_val_metric = "mean_auc" if multi_label else "accuracy"
+parser.add_argument("--validation_metric", default=default_val_metric,
+                    choices=["f1_weighted", "accuracy", "loss", "mean_auc", "hamming_loss"])
 
 use_best_val_model_for_inference = True
 parser.add_argument('--use_best_val_model_for_inference', default=use_best_val_model_for_inference)
@@ -120,7 +131,7 @@ device = str('cuda:{}'.format(gpu) if torch.cuda.is_available() and gpu != -1
 parser.add_argument('--device', default=device)
 
 
-num_epochs = 400
+num_epochs = 2
 num_epochs = 2 if debug else num_epochs
 parser.add_argument('--num_epochs', type=int, default=num_epochs)
 
@@ -134,15 +145,6 @@ parser.add_argument('--user', default=get_user())
 parser.add_argument('--hostname', default=get_host())
 
 FLAGS = parser.parse_args()
-
-COMET_EXPERIMENT = None
-if FLAGS.use_comet_ml:
-    hyper_params = vars(FLAGS)
-    COMET_EXPERIMENT = Experiment(api_key=COMET_ML_APP_KEY, project_name=COMET_PROJECT_NAME)
-    COMET_EXPERIMENT.log_parameters(hyper_params)
-    COMET_EXPERIMENT.log_parameters(model_params)
-    print("Experiment url, ", COMET_EXPERIMENT.url)
-    COMET_EXPERIMENT.add_tag(FLAGS.dataset)
 
 
 

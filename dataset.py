@@ -14,21 +14,31 @@ class TextDataset(object):
         self.name = name
         self.graph = sparse_graph
         self.labels = labels
-        if 'twitter_asian_prejudice' in name:
-            if 'sentiment' not in name:
-                self.labels = ['discussion_of_eastasian_prejudice' if label =='counter_speech' else label for label in self.labels]
-            else:
-                if 'neutral' not in labels:
-                    sentiment_labels = []
-                    neutral_pos_labels = ["none_of_the_above", "counter_speech", "discussion_of_eastasian_prejudice"]
-                    for label in labels:
-                        if label in neutral_pos_labels:
-                            sentiment_labels.append("neutral")
-                        else:
-                            sentiment_labels.append("negative")
-                    self.labels = sentiment_labels
-        self.label_dict = {label: i for i, label in enumerate(list(set(self.labels)))}
-        self.label_inds = np.asarray([self.label_dict[label] for label in self.labels])
+        
+        # Check if this is multi-label (Jigsaw) or single-label classification
+        self.multi_label = 'jigsaw' in name if name else False
+        
+        if self.multi_label:
+            # For multi-label: labels is already a list of lists [[0,1,0,...], [1,0,0,...], ...]
+            self.label_inds = np.asarray(labels, dtype=np.float32)
+            self.label_dict = None  # Not applicable for multi-label
+        else:
+            # Original single-label processing
+            if 'twitter_asian_prejudice' in name:
+                if 'sentiment' not in name:
+                    self.labels = ['discussion_of_eastasian_prejudice' if label =='counter_speech' else label for label in self.labels]
+                else:
+                    if 'neutral' not in labels:
+                        sentiment_labels = []
+                        neutral_pos_labels = ["none_of_the_above", "counter_speech", "discussion_of_eastasian_prejudice"]
+                        for label in labels:
+                            if label in neutral_pos_labels:
+                                sentiment_labels.append("neutral")
+                            else:
+                                sentiment_labels.append("negative")
+                        self.labels = sentiment_labels
+            self.label_dict = {label: i for i, label in enumerate(list(set(self.labels)))}
+            self.label_inds = np.asarray([self.label_dict[label] for label in self.labels])
         self.vocab = vocab
         self.word_id_map = word_id_map
         self.docs = docs_dict

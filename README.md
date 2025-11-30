@@ -31,8 +31,6 @@ This repo uses python 3.6 and the following PyTorch packages:
 - torch-sparse==0.4.0
 - torchvision==0.4.0
 
-I also use [comet.ml](https://www.comet.ml/site/) for experiment tracking
-
 ## Included Datasets
 
 The included datasets are a twitter asian prejudice [dataset](https://arxiv.org/abs/2005.03909), reuters 8, and AG's news topic classification [dataset](https://github.com/mhjabreel/CharCnn_Keras/tree/master/data/ag_news_csv).
@@ -46,7 +44,7 @@ The following is an example of the constructed text graph for the twitter datase
 
 ## Running the model
 
-To run the model simply change the model and dataset configurations in `config.py`. You can also enter your own cometml information to see the results and experiment running in the browser. 
+To run the model simply change the model and dataset configurations in `config.py`. 
 After model configuration, simply run 
 ```
 $ python main.py

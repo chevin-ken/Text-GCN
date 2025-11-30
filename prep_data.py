@@ -86,9 +86,24 @@ def clean_doc_ap(string):
     return string
 
 
+def clean_doc_jigsaw(string):
+    """Clean Jigsaw toxic comment text."""
+    # Remove URLs
+    string = re.sub(r"http[s]?://\S+", " ", string)
+    # Remove Wikipedia markup
+    string = re.sub(r"\[\[.*?\]\]", " ", string)
+    # Remove IP addresses
+    string = re.sub(r"\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}", " ", string)
+    # Keep basic structure but clean
+    string = re.sub(r"[^A-Za-z0-9()_+,!?:\'\`\.\-]", " ", string)
+    return string
+
+
 def clean_doc(string, dataset):
     if 'twitter_asian_prejudice' in dataset:
         string = clean_doc_ap(string)
+    elif 'jigsaw' in dataset:
+        string = clean_doc_jigsaw(string)
     else:
         pass
     string = re.sub(r"^\"", "", string)
@@ -110,7 +125,6 @@ def clean_doc(string, dataset):
 
 
 if __name__ == "__main__":
-
-    dataset = 'twitter_asian_prejudice_no_hashtag'
-    out = clean_doc('"😷before you wear n95 masks, you should look into getting a fit test. because unlike surgical masks, one size does not fit all for n95 masks. having best fit n95 for your face will ensure a good face seal for protection.  https://t.co/xm2maqsp8w  #HASHTAG HASHTAG_EASTASIA+VIRUS https://t.co/iiszmr3wgc"', dataset)
+    # Change dataset here to clean different datasets
+    dataset = 'jigsaw'  # Options: 'jigsaw', 'twitter_asian_prejudice', 'r8', 'ag', etc.
     clean_data(dataset)

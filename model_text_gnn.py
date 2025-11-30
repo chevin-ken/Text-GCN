@@ -19,6 +19,9 @@ class TextGNN(nn.Module):
         self.dropout = dropout
         if pred_type == 'softmax':
             assert layer_dim_list[-1] == num_labels
+        elif pred_type == 'sigmoid':
+            # Multi-label classification
+            assert layer_dim_list[-1] == num_labels
         elif pred_type == 'mlp':
             dims = self._calc_mlp_dims(layer_dim_list[-1], num_labels)
             self.mlp = MLP(layer_dim_list[-1], num_labels, num_hidden_lyr=len(dims), hidden_channels=dims, bn=False)
@@ -27,7 +30,15 @@ class TextGNN(nn.Module):
         self.act = act
         self.bn = bn
         self.layers = self._create_node_embd_layers()
-        self.loss = nn.CrossEntropyLoss(weight=class_weights)
+        
+        # Choose loss function based on prediction type
+        if pred_type == 'sigmoid':
+            # BCEWithLogitsLoss for multi-label classification
+            # pos_weight handles class imbalance for each label
+            self.loss = nn.BCEWithLogitsLoss(pos_weight=class_weights)
+        else:
+            # CrossEntropyLoss for single-label classification
+            self.loss = nn.CrossEntropyLoss(weight=class_weights)
 
     def forward(self, pyg_graph, dataset):
         acts = [pyg_graph.x]
@@ -42,11 +53,21 @@ class TextGNN(nn.Module):
         pred_inds = dataset.node_ids
         if self.pred_type == 'softmax':
             y_preds = ins[pred_inds]
+        elif self.pred_type == 'sigmoid':
+            y_preds = ins[pred_inds]
         elif self.pred_type == 'mlp':
             y_preds = self.mlp(ins[pred_inds])
         else:
             raise NotImplementedError
-        y_true = torch.tensor(dataset.label_inds[pred_inds], dtype=torch.long, device=FLAGS.device)
+        
+        # Handle both single-label and multi-label targets
+        if self.pred_type == 'sigmoid':
+            # Multi-label: labels are already float arrays [batch, num_labels]
+            y_true = torch.tensor(dataset.label_inds[pred_inds], dtype=torch.float, device=FLAGS.device)
+        else:
+            # Single-label: labels are class indices [batch]
+            y_true = torch.tensor(dataset.label_inds[pred_inds], dtype=torch.long, device=FLAGS.device)
+        
         loss = self.loss(y_preds, y_true)
         return loss, y_preds.cpu().detach().numpy()
 
@@ -233,7 +254,8 @@ class GCNConv(MessagePassing):
         assert edge_weight.size(0) == edge_index.size(1)
 
         edge_index, edge_weight = remove_self_loops(edge_index, edge_weight)
-        edge_index = add_self_loops(edge_index, num_nodes)
+        # PyTorch Geometric 2.6+ API: add_self_loops returns (edge_index, edge_attr)
+        edge_index, _ = add_self_loops(edge_index, num_nodes=num_nodes)
         loop_weight = torch.full((num_nodes, ),
                                  1 if not improved else 2,
                                  dtype=edge_weight.dtype,
