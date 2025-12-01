@@ -144,7 +144,9 @@ parser.add_argument('--user', default=get_user())
 
 parser.add_argument('--hostname', default=get_host())
 
-FLAGS = parser.parse_args()
+# Use parse_known_args() to support Jupyter/Colab environments
+# This ignores unknown arguments (like Jupyter kernel args)
+FLAGS, unknown = parser.parse_known_args()
 
 
 

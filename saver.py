@@ -2,8 +2,7 @@ from config import FLAGS
 from model_factory import create_model
 from utils import get_root_path, create_dir_if_not_exists, get_ts, save, sorted_nicely
 
-import glob
-from os.path import join, getctime
+from os.path import join
 import torch
 
 
@@ -29,19 +28,20 @@ class Saver(object):
         self.model_info_f.write('\n\n')
 
     def save_trained_model(self, trained_model, epoch=None):
-        epoch = "_epoch_{}".format(epoch) if epoch is not None else ""
-        p = join(self.logdir, 'trained_model{}.pt'.format(epoch))
+        # Always save to the same filename, overwriting previous best model
+        p = join(self.logdir, 'best_model.pt')
         torch.save(trained_model.state_dict(), p)
-        print('Trained model saved to {}'.format(p))
+        epoch_str = f" (epoch {epoch})" if epoch is not None else ""
+        print(f'Best model saved to {p}{epoch_str}')
 
     def load_trained_model(self, train_data):
-        p = join(self.logdir, 'trained_model*')
-        files = glob.glob(p)
-        best_trained_model_path = max(files, key=getctime)
+        # Load the single best model file
+        best_trained_model_path = join(self.logdir, 'best_model.pt')
         trained_model = create_model(train_data)
         trained_model.load_state_dict(
             torch.load(best_trained_model_path, map_location=FLAGS.device))
         trained_model.to(FLAGS.device)
+        print(f'Loaded best model from {best_trained_model_path}')
         return trained_model
 
     def _save_conf_code(self):
