@@ -96,6 +96,12 @@ parser.add_argument('--word_window_size', default=word_window_size)
 min_word_freq = 5  # Only include words appearing at least 5 times
 parser.add_argument('--min_word_freq', type=int, default=min_word_freq)
 
+# Use separate graphs for train/val/test instead of a single unified graph
+# By default, use unified graph (original behavior)
+# Add --use_separate_graphs flag to enable separate graphs mode
+parser.add_argument('--use_separate_graphs', action='store_true', 
+                    help='Build separate graphs for train/val/test instead of unified graph')
+
 validation_window_size = 10
 
 """

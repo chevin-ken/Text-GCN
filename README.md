@@ -50,6 +50,44 @@ After model configuration, simply run
 $ python main.py
 ```
 
+### Graph Building Modes
+
+This implementation supports two graph building modes:
+
+**1. Unified Graph Mode (Default)**
+- Builds a single graph containing all documents
+- All splits share the same graph structure
+- Original Text-GCN approach
+
+```bash
+python main.py --num_epochs 50
+```
+
+**2. Separate Graphs Mode**
+- Builds independent graphs for train/val/test
+- Vocabulary built from training data only
+- Prevents data leakage between splits
+
+```bash
+python main.py --num_epochs 50 --use_separate_graphs
+```
+
+For detailed information about both modes, see [GRAPH_MODES.md](GRAPH_MODES.md).
+
+### Automatic Visualization
+
+The training pipeline automatically generates comprehensive plots and metrics:
+
+- **Loss curves** (training and validation)
+- **AUC curves** (for multi-label classification)
+- **Per-label performance**
+- **Comprehensive training summary**
+- **Test metrics bar charts**
+
+All plots are saved to `logs/<experiment>/plots/` after training.
+
+See [PLOTTING_GUIDE.md](PLOTTING_GUIDE.md) for detailed documentation.
+
 ## Results
 Some initial results I have obtained using hyperparameters from the TextGCN paper are
 
