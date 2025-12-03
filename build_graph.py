@@ -91,8 +91,18 @@ def build_text_graph_dataset(dataset, window_size=None, use_sentiment=False, ngr
     del words_in_docs
     gc.collect()
 
-    print("      → Building graph edges (BM25 + Character N-grams)...")
-    sparse_graph = build_bm25_chargram_edges(doc_list, word_id_map, vocab, word_doc_freq)
+    # Choose edge construction method based on flag
+    edge_method = FLAGS.edge_method if hasattr(FLAGS, 'edge_method') else 'bm25_chargram'
+    
+    if edge_method == 'pmi_tfidf':
+        print("      → Building graph edges (PMI + TF-IDF - Original)...")
+        sparse_graph = build_pmi_tfidf_edges(doc_list, word_id_map, vocab, word_doc_freq, window_size)
+    elif edge_method == 'bm25_chargram':
+        print("      → Building graph edges (BM25 + Character N-grams - Optimized)...")
+        sparse_graph = build_bm25_chargram_edges(doc_list, word_id_map, vocab, word_doc_freq)
+    else:
+        raise ValueError(f"Unknown edge_method: {edge_method}. Must be 'pmi_tfidf' or 'bm25_chargram'")
+    
     print(f"      ✓ Graph built: {sparse_graph.shape[0]} nodes, {sparse_graph.nnz} edges")
     
     # Clean up large intermediate structures
@@ -257,6 +267,148 @@ def build_bm25_chargram_edges(doc_list, word_id_map, vocab, word_doc_freq):
     adj = adj_mat + adj_mat.T.multiply(adj_mat.T > adj_mat) - adj_mat.multiply(adj_mat.T > adj_mat)
     
     # Clean up
+    del adj_mat
+    gc.collect()
+    
+    return adj
+
+
+def build_pmi_tfidf_edges(doc_list, word_id_map, vocab, word_doc_freq, window_size=20):
+    """
+    Build graph edges using ORIGINAL Text-GCN method:
+    1. PMI (Pointwise Mutual Information) for word-word edges
+    2. TF-IDF for document-word edges
+    
+    Args:
+        doc_list: List of documents (strings)
+        word_id_map: Mapping from words to IDs
+        vocab: List of vocabulary words
+        word_doc_freq: Document frequency for each word
+        window_size: Size of sliding window for co-occurrence (default: 20)
+    """
+    
+    # Step 1: Build windows
+    print("      → Creating windows...")
+    windows = []
+    for doc_words in doc_list:
+        words = doc_words.split()
+        # Filter to only include words in vocabulary
+        words = [w for w in words if w in word_id_map]
+        doc_length = len(words)
+        if doc_length == 0:
+            continue
+        if doc_length <= window_size:
+            windows.append(words)
+        else:
+            for i in range(doc_length - window_size + 1):
+                window = words[i: i + window_size]
+                windows.append(window)
+    
+    print(f"      ✓ Created {len(windows)} windows")
+    
+    # Step 2: Build word window frequency
+    print("      → Computing word frequencies in windows...")
+    word_window_freq = defaultdict(int)
+    for window in windows:
+        appeared = set()
+        for word in window:
+            if word not in appeared:
+                word_window_freq[word] += 1
+                appeared.add(word)
+    
+    # Step 3: Build word pair co-occurrence
+    print("      → Computing word pair co-occurrence...")
+    word_pair_count = defaultdict(int)
+    for window in tqdm(windows, desc="Building PMI"):
+        for i in range(1, len(window)):
+            for j in range(i):
+                word_i = window[i]
+                word_j = window[j]
+                word_i_id = word_id_map[word_i]
+                word_j_id = word_id_map[word_j]
+                if word_i_id == word_j_id:
+                    continue
+                word_pair_count[(word_i_id, word_j_id)] += 1
+                word_pair_count[(word_j_id, word_i_id)] += 1
+    
+    # Store window count before deleting
+    num_window = len(windows)
+    
+    # Clean up windows as they're no longer needed
+    del windows
+    gc.collect()
+    
+    row = []
+    col = []
+    weight = []
+
+    # Step 4: Calculate PMI for word-word edges
+    print("      → Computing PMI scores...")
+    num_docs = len(doc_list)
+    for word_id_pair, count in tqdm(word_pair_count.items(), desc="PMI calculation"):
+        i, j = word_id_pair[0], word_id_pair[1]
+        word_freq_i = word_window_freq[vocab[i]]
+        word_freq_j = word_window_freq[vocab[j]]
+        pmi = log((1.0 * count / num_window) /
+                  (1.0 * word_freq_i * word_freq_j / (num_window * num_window)))
+        if pmi <= 0:
+            continue
+        row.append(num_docs + i)
+        col.append(num_docs + j)
+        weight.append(pmi)
+    
+    print(f"      ✓ Created {len(weight)} word-word edges (PMI)")
+    
+    # Clean up word pair structures
+    del word_pair_count, word_window_freq
+    gc.collect()
+
+    # Step 5: Build document-word edges with TF-IDF
+    print("      → Computing TF-IDF for document-word edges...")
+    doc_word_freq = defaultdict(int)
+    for i, doc_words in enumerate(doc_list):
+        words = doc_words.split()
+        for word in words:
+            if word not in word_id_map:
+                continue  # Skip words not in vocabulary
+            word_id = word_id_map[word]
+            doc_word_str = (i, word_id)
+            doc_word_freq[doc_word_str] += 1
+
+    for i, doc_words in enumerate(doc_list):
+        words = doc_words.split()
+        doc_word_set = set()
+        for word in words:
+            if word not in word_id_map:
+                continue  # Skip words not in vocabulary
+            if word in doc_word_set:
+                continue
+            word_id = word_id_map[word]
+            freq = doc_word_freq[(i, word_id)]
+            row.append(i)
+            col.append(num_docs + word_id)
+            idf = log(1.0 * num_docs / word_doc_freq[vocab[word_id]])
+            weight.append(freq * idf)
+            doc_word_set.add(word)
+    
+    print(f"      ✓ Created {len(weight) - len([w for w in weight if w > 0])} document-word edges (TF-IDF)")
+    
+    # Clean up doc_word_freq
+    del doc_word_freq
+    gc.collect()
+
+    # Step 6: Build sparse adjacency matrix
+    number_nodes = num_docs + len(vocab)
+    adj_mat = sp.csr_matrix((weight, (row, col)), shape=(number_nodes, number_nodes))
+    
+    # Clean up row, col, weight lists before final operation
+    del row, col, weight
+    gc.collect()
+    
+    # Make symmetric (undirected graph)
+    adj = adj_mat + adj_mat.T.multiply(adj_mat.T > adj_mat) - adj_mat.multiply(adj_mat.T > adj_mat)
+    
+    # Clean up intermediate matrix
     del adj_mat
     gc.collect()
     

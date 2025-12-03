@@ -52,7 +52,8 @@ def load_data():
 def _load_tvt_data_helper():
     print("    → Checking for full dataset cache...")
     dir = join(get_save_path(), 'all')
-    path = join(dir, FLAGS.dataset + '_all_window_' + str(FLAGS.word_window_size))
+    edge_method = FLAGS.edge_method if hasattr(FLAGS, 'edge_method') else 'bm25_chargram'
+    path = join(dir, f'{FLAGS.dataset}_all_window_{FLAGS.word_window_size}_{edge_method}')
     rtn = load(path, print_msg=False)
     if rtn:
         print("    ✓ Loading full dataset from cache...")
