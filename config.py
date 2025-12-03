@@ -10,7 +10,7 @@ Most Relevant
 """
 
 debug = False
-gpu = -1
+gpu = 0  # Use GPU 0 (set to -1 for CPU)
 
 """ 
 dataset:
@@ -95,6 +95,11 @@ parser.add_argument('--word_window_size', default=word_window_size)
 # Higher value = smaller vocabulary = less memory
 min_word_freq = 5  # Only include words appearing at least 5 times
 parser.add_argument('--min_word_freq', type=int, default=min_word_freq)
+
+# N-gram range for edge construction (1=unigrams, 2=bigrams, 3=trigrams)
+# (1,3) means use unigrams, bigrams, and trigrams
+ngram_range = (1, 3)
+parser.add_argument('--ngram_range', type=tuple, default=ngram_range)
 
 validation_window_size = 10
 

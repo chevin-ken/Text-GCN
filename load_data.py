@@ -60,7 +60,8 @@ def _load_tvt_data_helper():
         del rtn  # Free memory from loaded cache
     else:
         print("    → Building text graph (this may take a while)...")
-        dataset = build_text_graph_dataset(FLAGS.dataset, FLAGS.word_window_size)
+        dataset = build_text_graph_dataset(FLAGS.dataset, FLAGS.word_window_size, 
+                                          False, FLAGS.ngram_range)
         print("    ✓ Graph construction complete")
         gc.collect()
         print("    → Saving full dataset to cache...")
