@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-import networkx as nx
 import scipy.sparse as sp
 from math import log
 from dataset import TextDataset
@@ -101,21 +99,6 @@ def build_text_graph_dataset(dataset, window_size):
 
 
 def build_edges_for_split(doc_list, doc_ids, total_num_docs, word_id_map, vocab, word_doc_freq, window_size=20):
-    """
-    Build edges for a specific split (train/val/test) while maintaining full graph dimensions.
-    
-    Args:
-        doc_list: List of documents in this split
-        doc_ids: Original document IDs for these documents
-        total_num_docs: Total number of documents across all splits
-        word_id_map: Shared word to ID mapping
-        vocab: Shared vocabulary
-        word_doc_freq: Word-document frequency for this split
-        window_size: Window size for PMI calculation
-    
-    Returns:
-        Sparse adjacency matrix with shape (total_num_docs + len(vocab), total_num_docs + len(vocab))
-    """
     # Construct windows (only with vocabulary words)
     windows = []
     for doc_words in doc_list:
@@ -374,21 +357,6 @@ def build_word_doc_edges(doc_list, vocab_set=None):
 
 
 def build_separate_text_graph_datasets(dataset, window_size, split_ratio, tvt_list=None, random_seed=None, split_dict=None):
-    """
-    Build three separate graphs for train, validation, and test data.
-    Each graph is built using only the documents from its respective split.
-    
-    Args:
-        dataset: Dataset name
-        window_size: Window size for PMI calculation
-        split_ratio: List of two floats [train_ratio, val_ratio], test is inferred
-        tvt_list: List of split names ['train', 'val', 'test']
-        random_seed: Random seed for splitting
-        split_dict: Pre-defined split dictionary {doc_id: 'train'/'val'/'test'}
-    
-    Returns:
-        train_dataset, val_dataset, test_dataset: Three separate TextDataset objects
-    """
     if tvt_list is None:
         tvt_list = ['train', 'val', 'test']
     

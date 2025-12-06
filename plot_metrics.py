@@ -1,8 +1,3 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-"""
-Visualization utilities for Text-GCN training metrics.
-"""
 import matplotlib.pyplot as plt
 import numpy as np
 import os

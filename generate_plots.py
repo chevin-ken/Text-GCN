@@ -1,14 +1,3 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-"""
-Standalone script to generate plots from saved metrics JSON file.
-Useful for regenerating plots without retraining the model.
-
-Usage:
-    python generate_plots.py <path_to_metrics.json>
-    python generate_plots.py logs/TextGNN_jigsaw_*/plots/metrics.json
-"""
-
 import sys
 import json
 import os

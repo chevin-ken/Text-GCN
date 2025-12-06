@@ -1,13 +1,3 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-"""
-Example script for analyzing saved metrics and creating custom visualizations.
-Shows how to load metrics.json and perform custom analysis.
-
-Usage:
-    python analyze_results.py logs/TextGNN_*/plots/metrics.json
-"""
-
 import json
 import numpy as np
 import matplotlib.pyplot as plt
@@ -16,14 +6,12 @@ from os.path import dirname, join
 
 
 def load_metrics(json_path):
-    """Load metrics from JSON file."""
     with open(json_path, 'r') as f:
         data = json.load(f)
     return data['training_history'], data['test_results']
 
 
 def print_summary(history, test_results):
-    """Print a text summary of the results."""
     print("\n" + "="*70)
     print("TRAINING SUMMARY")
     print("="*70)
@@ -73,7 +61,6 @@ def print_summary(history, test_results):
 
 
 def analyze_convergence(history):
-    """Analyze training convergence."""
     train_loss = np.array(history['train_loss'])
     val_loss = np.array(history['val_loss'])
     
@@ -100,7 +87,6 @@ def analyze_convergence(history):
 
 
 def compare_label_difficulty(test_results):
-    """Analyze which labels are hardest to predict."""
     if 'auc_per_label' not in test_results or not test_results['auc_per_label']:
         print("No per-label data available")
         return
@@ -120,7 +106,6 @@ def compare_label_difficulty(test_results):
 
 
 def create_learning_rate_analysis(history, save_path=None):
-    """Create a plot showing learning progress."""
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
     
     epochs = range(1, len(history['train_loss']) + 1)
