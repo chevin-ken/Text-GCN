@@ -102,6 +102,11 @@ parser.add_argument('--min_word_freq', type=int, default=min_word_freq)
 parser.add_argument('--use_separate_graphs', action='store_true', 
                     help='Build separate graphs for train/val/test instead of unified graph')
 
+# Edge building method: PMI+TF-IDF (default) vs BM25+CharNgrams
+# BM25 is better for short text, char n-grams handle obfuscation (f**k, sh1t)
+parser.add_argument('--use_bm25_edges', action='store_true',
+                    help='Use BM25+CharNgram edges instead of PMI+TF-IDF edges')
+
 validation_window_size = 10
 
 """
