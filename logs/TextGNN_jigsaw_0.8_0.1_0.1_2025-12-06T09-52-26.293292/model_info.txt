@@ -1,0 +1,23 @@
+dataset                    : jigsaw
+device                     : cuda:0
+hostname                   : 9dc36551dd5a
+init_type                  : one_hot_init
+lr                         : 0.02
+min_word_freq              : 5
+model                      : TextGNN:pred_type=sigmoid,node_embd_type=gcn,num_layers=2,layer_dim_list=200_6,act=relu,dropout=True,class_weights=True
+multi_label                : True
+ngram_range                : (1, 3)
+num_epochs                 : 20
+random_seed                : 3
+tvt_list                   : ['train', 'test', 'val']
+tvt_ratio                  : [0.8, 0.1, 0.1]
+use_best_val_model_for_inference : True
+use_edge_weights           : False
+user                       : root
+validation_metric          : mean_auc
+validation_window_size     : 10
+word_window_size           : 5
+ts                         : 2025-12-06T09-52-26.293292
+
+python /content/drive/MyDrive/OMSCS/CS7643/final_project/TextGCN/main.py --dataset=jigsaw  --device=cuda:0  --hostname=9dc36551dd5a  --init_type=one_hot_init  --lr=0.02  --min_word_freq=5  --model=TextGNN:pred_type=sigmoid,node_embd_type=gcn,num_layers=2,layer_dim_list=200_6,act=relu,dropout=True,class_weights=True  --multi_label=True  --ngram_range=(1, 3)  --num_epochs=20  --random_seed=3  --tvt_list=['train', 'test', 'val']  --tvt_ratio=[0.8, 0.1, 0.1]  --use_best_val_model_for_inference=True  --use_edge_weights=False  --user=root  --validation_metric=mean_auc  --validation_window_size=10  --word_window_size=5
+
