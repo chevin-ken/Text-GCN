@@ -1,13 +1,23 @@
 from config import FLAGS
 from os.path import join
 from utils import get_save_path, load, save, get_corpus_path
-from build_graph import build_text_graph_dataset
+from build_graph import build_text_graph_dataset, build_separate_text_graph_datasets
 from dataset import TextDataset
 import gc
 
 
 def load_data():
     print("  → Preparing data paths...")
+    
+    # Determine graph mode
+    use_separate = FLAGS.use_separate_graphs if hasattr(FLAGS, 'use_separate_graphs') else False
+    mode_suffix = '_separate' if use_separate else '_unified'
+    
+    if use_separate:
+        print("  → Graph mode: SEPARATE (each split has its own graph)")
+    else:
+        print("  → Graph mode: UNIFIED (all splits share one graph)")
+    
     dir = join(get_save_path(), 'split')
     dataset_name = FLAGS.dataset
     train_ratio = int(FLAGS.tvt_ratio[0] * 100)
@@ -16,11 +26,12 @@ def load_data():
     print(f"  → Split ratio: {train_ratio}% train, {val_ratio}% val, {test_ratio}% test")
     
     if 'presplit' not in dataset_name:
-        save_fn = '{}_train_{}_val_{}_test_{}_seed_{}_window_size_{}'.format(dataset_name, train_ratio,
-                                                              val_ratio, test_ratio,
-                                                              FLAGS.random_seed, FLAGS.word_window_size)
+        save_fn = '{}_train_{}_val_{}_test_{}_seed_{}_window_size_{}{}'.format(
+            dataset_name, train_ratio, val_ratio, test_ratio,
+            FLAGS.random_seed, FLAGS.word_window_size, mode_suffix)
     else:
-        save_fn = '{}_train_val_test_{}_window_size_{}'.format(dataset_name, FLAGS.random_seed, FLAGS.word_window_size)
+        save_fn = '{}_train_val_test_{}_window_size_{}{}'.format(
+            dataset_name, FLAGS.random_seed, FLAGS.word_window_size, mode_suffix)
     path = join(dir, save_fn)
     
     print(f"  → Checking for cached data: {save_fn}")
@@ -50,28 +61,44 @@ def load_data():
 
 
 def _load_tvt_data_helper():
-    print("    → Checking for full dataset cache...")
-    dir = join(get_save_path(), 'all')
-    path = join(dir, FLAGS.dataset + '_all_window_' + str(FLAGS.word_window_size))
-    rtn = load(path, print_msg=False)
-    if rtn:
-        print("    ✓ Loading full dataset from cache...")
-        dataset = TextDataset(None, None, None, None, None, None, rtn)
-        del rtn  # Free memory from loaded cache
-    else:
-        print("    → Building text graph (this may take a while)...")
-        dataset = build_text_graph_dataset(FLAGS.dataset, FLAGS.word_window_size)
-        print("    ✓ Graph construction complete")
-        gc.collect()
-        print("    → Saving full dataset to cache...")
-        save(dataset.__dict__, path, print_msg=False)
-
-    print("    → Splitting into train/val/test sets...")
-    train_dataset, val_dataset, test_dataset = dataset.tvt_split(FLAGS.tvt_ratio[:2], FLAGS.tvt_list, FLAGS.random_seed)
+    # Check if we should use separate graphs for each split
+    use_separate = FLAGS.use_separate_graphs if hasattr(FLAGS, 'use_separate_graphs') else False
     
-    # Clean up full dataset after splitting to free memory
-    del dataset
-    gc.collect()
-    print("    ✓ Memory cleanup after split")
+    if use_separate:
+        # Build three separate graphs directly
+        print("    → Building separate graphs for each split...")
+        train_dataset, val_dataset, test_dataset = build_separate_text_graph_datasets(
+            FLAGS.dataset, 
+            FLAGS.word_window_size, 
+            FLAGS.tvt_ratio[:2],
+            FLAGS.tvt_list,
+            FLAGS.random_seed
+        )
+        print("    ✓ All three separate graphs built successfully")
+    else:
+        # Build unified graph and split
+        print("    → Checking for full dataset cache...")
+        dir = join(get_save_path(), 'all')
+        path = join(dir, FLAGS.dataset + '_all_window_' + str(FLAGS.word_window_size))
+        rtn = load(path, print_msg=False)
+        if rtn:
+            print("    ✓ Loading full dataset from cache...")
+            dataset = TextDataset(None, None, None, None, None, None, rtn)
+            del rtn  # Free memory from loaded cache
+        else:
+            print("    → Building unified text graph (this may take a while)...")
+            dataset = build_text_graph_dataset(FLAGS.dataset, FLAGS.word_window_size)
+            print("    ✓ Graph construction complete")
+            gc.collect()
+            print("    → Saving full dataset to cache...")
+            save(dataset.__dict__, path, print_msg=False)
+
+        print("    → Splitting into train/val/test sets...")
+        train_dataset, val_dataset, test_dataset = dataset.tvt_split(FLAGS.tvt_ratio[:2], FLAGS.tvt_list, FLAGS.random_seed)
+        
+        # Clean up full dataset after splitting to free memory
+        del dataset
+        gc.collect()
+        print("    ✓ Memory cleanup after split")
     
     return train_dataset, val_dataset, test_dataset
