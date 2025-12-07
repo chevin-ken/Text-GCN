@@ -7,6 +7,7 @@ from utils import get_corpus_path
 from os.path import join, exists
 from tqdm import tqdm
 import gc
+from bm25_edges import build_bm25_chargram_edges, build_bm25_chargram_edges_for_split
 
 
 def build_text_graph_dataset(dataset, window_size):
@@ -84,8 +85,12 @@ def build_text_graph_dataset(dataset, window_size):
     del words_in_docs
     gc.collect()
 
-    print("      → Building graph edges (PMI & TF-IDF)...")
-    sparse_graph = build_edges(doc_list, word_id_map, vocab, word_doc_freq, window_size)
+    if FLAGS.use_bm25_edges:
+        print("      → Building graph edges (BM25 & CharNgrams)...")
+        sparse_graph = build_bm25_chargram_edges(doc_list, word_id_map, vocab, word_doc_freq)
+    else:
+        print("      → Building graph edges (PMI & TF-IDF)...")
+        sparse_graph = build_edges(doc_list, word_id_map, vocab, word_doc_freq, window_size)
     print(f"      ✓ Graph built: {sparse_graph.shape[0]} nodes, {sparse_graph.nnz} edges")
     
     # Clean up large intermediate structures
@@ -488,9 +493,13 @@ def build_separate_text_graph_datasets(dataset, window_size, split_ratio, tvt_li
         
         # Build graph edges (PMI & TF-IDF) for this split
         # Note: build_edges_with_padding will create a graph with total_num_nodes dimension
-        print(f"        → Building graph edges (PMI & TF-IDF) for {split_name}...")
-        sparse_graph = build_edges_for_split(split_docs, split_ids, total_num_docs, 
-                                              shared_word_id_map, shared_vocab, word_doc_freq, window_size)
+        print(f"        → Building graph edges ({'BM25 & CharNgrams' if FLAGS.use_bm25_edges else 'PMI & TF-IDF'}) for {split_name}...")
+        if FLAGS.use_bm25_edges:
+            sparse_graph = build_bm25_chargram_edges_for_split(split_docs, split_ids, total_num_docs,
+                                                                shared_word_id_map, shared_vocab, word_doc_freq)
+        else:
+            sparse_graph = build_edges_for_split(split_docs, split_ids, total_num_docs, 
+                                                  shared_word_id_map, shared_vocab, word_doc_freq, window_size)
         print(f"        ✓ Graph built: {sparse_graph.shape[0]} nodes (all docs + words), {sparse_graph.nnz} edges")
         
         del word_doc_freq
