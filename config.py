@@ -96,6 +96,18 @@ parser.add_argument('--word_window_size', default=word_window_size)
 min_word_freq = 5  # Only include words appearing at least 5 times
 parser.add_argument('--min_word_freq', type=int, default=min_word_freq)
 
+# N-gram range for edge construction (1=unigrams, 2=bigrams, 3=trigrams)
+# (1,3) means use unigrams, bigrams, and trigrams
+ngram_range = (1, 3)
+parser.add_argument('--ngram_range', type=tuple, default=ngram_range)
+
+# Edge construction method
+# 'pmi_tfidf': Original PMI + TF-IDF (classic Text-GCN)
+# 'bm25_chargram': BM25 + Character N-grams (optimized for toxic comments)
+edge_method = 'bm25_chargram'
+parser.add_argument('--edge_method', type=str, default=edge_method, 
+                   choices=['pmi_tfidf', 'bm25_chargram'])
+
 # Use separate graphs for train/val/test instead of a single unified graph
 # By default, use unified graph (original behavior)
 # Add --use_separate_graphs flag to enable separate graphs mode

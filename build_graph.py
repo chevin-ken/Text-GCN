@@ -7,6 +7,8 @@ from utils import get_corpus_path
 from os.path import join, exists
 from tqdm import tqdm
 import gc
+from rank_bm25 import BM25Okapi
+from bm25_edges import build_bm25_chargram_edges
 
 
 def build_text_graph_dataset(dataset, window_size):
@@ -85,7 +87,15 @@ def build_text_graph_dataset(dataset, window_size):
     gc.collect()
 
     print("      → Building graph edges (PMI & TF-IDF)...")
-    sparse_graph = build_edges(doc_list, word_id_map, vocab, word_doc_freq, window_size)
+    # Choose edge construction method based on flag
+    edge_method = FLAGS.edge_method if hasattr(FLAGS, 'edge_method') else 'pmi_tfidf'
+    
+    if edge_method == 'pmi_tfidf':
+        sparse_graph = build_pmi_tfidf_edges(doc_list, word_id_map, vocab, word_doc_freq, window_size)
+    elif edge_method == 'bm25_chargram':
+        sparse_graph = build_bm25_chargram_edges(doc_list, word_id_map, vocab, word_doc_freq)
+    else:
+        raise ValueError(f"Unknown edge_method: {edge_method}. Must be 'pmi_tfidf' or 'bm25_chargram'")
     print(f"      ✓ Graph built: {sparse_graph.shape[0]} nodes, {sparse_graph.nnz} edges")
     
     # Clean up large intermediate structures
@@ -213,7 +223,12 @@ def build_edges_for_split(doc_list, doc_ids, total_num_docs, word_id_map, vocab,
     return adj
 
 
-def build_edges(doc_list, word_id_map, vocab, word_doc_freq, window_size=20):
+def build_pmi_tfidf_edges(doc_list, word_id_map, vocab, word_doc_freq, window_size=20):
+    """
+    Build graph edges using ORIGINAL Text-GCN method:
+    1. PMI (Pointwise Mutual Information) for word-word edges
+    2. TF-IDF for document-word edges
+    """
     # constructing all windows (only with vocabulary words)
     windows = []
     for doc_words in doc_list:

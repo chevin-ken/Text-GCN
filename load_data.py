@@ -11,7 +11,9 @@ def load_data():
     
     # Determine graph mode
     use_separate = FLAGS.use_separate_graphs if hasattr(FLAGS, 'use_separate_graphs') else False
+    edge_method = FLAGS.edge_method if hasattr(FLAGS, 'edge_method') else 'pmi_tfidf'
     mode_suffix = '_separate' if use_separate else '_unified'
+    edge_suffix = f'_{edge_method}'
     
     if use_separate:
         print("  → Graph mode: SEPARATE (each split has its own graph)")
@@ -26,12 +28,12 @@ def load_data():
     print(f"  → Split ratio: {train_ratio}% train, {val_ratio}% val, {test_ratio}% test")
     
     if 'presplit' not in dataset_name:
-        save_fn = '{}_train_{}_val_{}_test_{}_seed_{}_window_size_{}{}'.format(
+        save_fn = '{}_train_{}_val_{}_test_{}_seed_{}_window_size_{}{}{}'.format(
             dataset_name, train_ratio, val_ratio, test_ratio,
-            FLAGS.random_seed, FLAGS.word_window_size, mode_suffix)
+            FLAGS.random_seed, FLAGS.word_window_size, mode_suffix, edge_suffix)
     else:
-        save_fn = '{}_train_val_test_{}_window_size_{}{}'.format(
-            dataset_name, FLAGS.random_seed, FLAGS.word_window_size, mode_suffix)
+        save_fn = '{}_train_val_test_{}_window_size_{}{}{}'.format(
+            dataset_name, FLAGS.random_seed, FLAGS.word_window_size, mode_suffix, edge_suffix)
     path = join(dir, save_fn)
     
     print(f"  → Checking for cached data: {save_fn}")
@@ -79,7 +81,8 @@ def _load_tvt_data_helper():
         # Build unified graph and split
         print("    → Checking for full dataset cache...")
         dir = join(get_save_path(), 'all')
-        path = join(dir, FLAGS.dataset + '_all_window_' + str(FLAGS.word_window_size))
+        edge_method = FLAGS.edge_method if hasattr(FLAGS, 'edge_method') else 'pmi_tfidf'
+        path = join(dir, FLAGS.dataset + '_all_window_' + str(FLAGS.word_window_size) + '_' + edge_method)
         rtn = load(path, print_msg=False)
         if rtn:
             print("    ✓ Loading full dataset from cache...")
